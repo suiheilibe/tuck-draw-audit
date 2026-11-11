@@ -1,331 +1,239 @@
-<!doctype html><html lang="ja"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}body{margin:0;font-size:14px;font-family:system-ui,sans-serif}img{max-width:100%}[hidden]{display:none!important}</style></head><body><title>戻しドロー検証ログ</title>
-<meta name="claude:viewport-fit-sides" content="cover">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@500;600;700&family=IBM+Plex+Sans+JP:wght@400;500;700&display=swap">
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>戻しドロー検証ログ</title>
 <style>
-/* Layout: header bar (title + settings/data buttons) → input + log on the left, stats on the right from 900px; settings and data open as overlay sheets */
+/* Colors come only from these tokens; dark mode follows the OS setting. No web fonts. */
 :root{
-  --bg:#F2F3F7; --surface:#FFFFFF; --ink:#1A1F2B; --muted:#5D6576; --line:#D9DCE5;
-  --chip:#E9EBF2; --accent:#2346B4; --accent-ink:#FFFFFF; --accent-soft:#DFE6FB;
-  --hit:#A85F00; --hit-bg:#FFEFD6; --warn:#B3261E; --warn-bg:#FCE4E2; --band:#2346B41F; --scrim:#10131A73;
-  --f-num:"Barlow Condensed","Arial Narrow",system-ui,sans-serif;
-  --f-body:"IBM Plex Sans JP","Hiragino Sans","Noto Sans JP",system-ui,sans-serif;
+  color-scheme:light dark; accent-color:var(--accent);
+  --bg:#fff; --ink:#1a1f2b; --muted:#5d6576; --line:#d9dce5; --accent:#2346b4; --warn:#b3261e;
 }
-@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
-  --bg:#10131A; --surface:#181C26; --ink:#E6E9F0; --muted:#9AA2B3; --line:#2A3040;
-  --chip:#222837; --accent:#86A2FF; --accent-ink:#0E1220; --accent-soft:#25304F;
-  --hit:#F2A93B; --hit-bg:#3A2A10; --warn:#FF8A80; --warn-bg:#3D1B19; --band:#86A2FF26; --scrim:#000000A6; color-scheme:dark}}
-:root[data-theme="dark"]{
-  --bg:#10131A; --surface:#181C26; --ink:#E6E9F0; --muted:#9AA2B3; --line:#2A3040;
-  --chip:#222837; --accent:#86A2FF; --accent-ink:#0E1220; --accent-soft:#25304F;
-  --hit:#F2A93B; --hit-bg:#3A2A10; --warn:#FF8A80; --warn-bg:#3D1B19; --band:#86A2FF26; --scrim:#000000A6; color-scheme:dark}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#10131a; --ink:#e6e9f0; --muted:#9aa2b3; --line:#2a3040; --accent:#6a8bfc; --warn:#ff8a80;
+}}
 
-body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.55;
-  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:12px 40px}
+/* base */
 *{box-sizing:border-box}
-button,input,select{font:inherit;color:inherit}
-button{cursor:pointer}
-:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
-.wrap{max-width:1100px;margin:0 auto;display:grid;gap:14px}
-.cols{display:grid;gap:14px}
-@media (min-width:900px){.cols{grid-template-columns:minmax(0,1.05fr) minmax(0,1fr);align-items:start}}
-.stack{display:grid;gap:14px;min-width:0}
+[hidden]{display:none!important}
+body{max-width:1000px;margin:0 auto;padding:12px;background:var(--bg);color:var(--ink);font-family:system-ui,sans-serif;line-height:1.5}
+h1,h2,h3{margin:0;font-size:1rem}
+small,dt{color:var(--muted);font-size:.8rem;font-weight:normal}
+dd{margin:0;font-size:1.5rem;font-weight:bold}
+hr{border:0;border-top:1px solid var(--line)}
 
-header.top{display:flex;flex-wrap:wrap;align-items:center;gap:6px 12px}
-h1{font-size:18px;margin:0;font-weight:700;letter-spacing:.02em;margin-right:auto}
-.tools{display:flex;align-items:center;gap:4px;flex-wrap:wrap}
-.save-state{font-size:12px;color:var(--muted);font-variant-numeric:tabular-nums;margin-right:6px}
-.save-state.err{color:var(--warn)}
-.ibtn{display:inline-flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:0 10px;min-height:36px;font-size:13px}
-.ibtn svg{width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
-.ibtn:hover{border-color:var(--muted)}
-.ibtn[aria-pressed="true"]{background:var(--accent-soft);border-color:var(--accent);color:var(--accent)}
+/* controls */
+button,input,textarea,.btn{font:inherit;color:inherit;background:none;border:1px solid var(--muted);border-radius:4px;padding:9px 12px}
+button,.btn{min-width:44px;text-align:center;cursor:pointer}
+:disabled{opacity:.4;cursor:default}
+[aria-pressed=true],.primary{background:var(--accent);border-color:var(--accent);color:var(--bg)}
+.hit{border-color:var(--accent);color:var(--accent)}
+.warn{color:var(--warn)}
+pre,textarea,kbd{overflow-x:auto;font:.8rem/1.6 ui-monospace,Menlo,Consolas,monospace}
+textarea{display:block;width:100%;min-height:8em}
+progress{display:block;width:100%}
 
-.panel{background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:16px;min-width:0}
-.label{font-size:12px;letter-spacing:.06em;color:var(--muted);font-weight:500}
+/* layout: blocks are spaced by 12px margins, .row/.grid2 lay out their children */
 .row{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
-
-.banner{background:var(--accent-soft);border-radius:10px;padding:8px 12px;display:flex;flex-wrap:wrap;gap:6px 12px;align-items:center;font-size:13px}
-
-.btn{border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:8px 14px;min-height:40px}
-.btn:hover{border-color:var(--muted)}
-.btn.primary{background:var(--accent);border-color:var(--accent);color:var(--accent-ink);font-weight:500}
-.btn.ghost{border-color:transparent;background:transparent;color:var(--accent);padding-inline:8px}
-.btn.danger{color:var(--warn)}
-.btn.sq{width:44px;height:44px;padding:0;font-size:20px;line-height:1;display:grid;place-items:center}
-.btn:disabled{opacity:.45;cursor:not-allowed}
+.split>:last-child{margin-left:auto}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.grid2 input{width:100%}
+header,.panel{margin-bottom:12px}
+.panel,.sheet{border:1px solid var(--line);border-radius:4px;padding:0 12px}
+.panel>*,.sheet>*{margin:12px 0}
+@media (min-width:900px){.cols{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}}
 
 /* input */
-.step{display:grid;gap:10px;padding-block:14px;border-top:1px solid var(--line)}
-.step:first-of-type{border-top:0;padding-top:4px}
-.step-head{display:flex;justify-content:space-between;align-items:baseline;gap:8px;flex-wrap:wrap}
-.step-head .derived{font-size:13px;color:var(--muted);font-variant-numeric:tabular-nums}
-.step-head .derived b{color:var(--ink);font-family:var(--f-num);font-size:18px}
-.bignum{display:flex;align-items:center;gap:10px}
-.bignum input{width:3.2ch;font-family:var(--f-num);font-size:52px;font-weight:700;line-height:1;text-align:center;
-  border:0;border-bottom:2px solid var(--line);background:transparent;padding:0;font-variant-numeric:tabular-nums;-moz-appearance:textfield}
-.bignum input::-webkit-outer-spin-button,.bignum input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
-.chips{display:grid;grid-template-columns:repeat(8,minmax(0,1fr));gap:6px}
-.chips.k{grid-template-columns:repeat(auto-fill,minmax(56px,1fr))}
-.chip{min-height:46px;border:1px solid transparent;border-radius:8px;background:var(--chip);
-  font-family:var(--f-num);font-size:22px;font-weight:600;font-variant-numeric:tabular-nums;padding:0}
-.chip[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
-.k-other{display:flex;align-items:center;gap:6px;font-size:13px;color:var(--muted)}
-.k-other input{width:4.5em;border:1px solid var(--line);border-radius:8px;background:var(--surface);padding:6px 8px;font-variant-numeric:tabular-nums}
-.results{display:grid;grid-template-columns:1fr 1fr;gap:10px}
-.results.multi{grid-template-columns:repeat(auto-fit,minmax(64px,1fr))}
-.res{min-height:72px;border-radius:12px;border:2px solid var(--line);background:var(--surface);font-size:17px;font-weight:700;display:grid;place-items:center;gap:2px;padding:6px}
-.res small{font-weight:400;font-size:12px;color:var(--muted)}
-.res.hit{border-color:var(--hit);background:var(--hit-bg);color:var(--hit)}
-.notes{display:grid;gap:6px}
-.note{font-size:13px;border-radius:8px;padding:8px 12px;background:var(--warn-bg);color:var(--warn)}
-.note.info{background:var(--chip);color:var(--muted)}
-.kbd-hint{font-size:12px;color:var(--muted);display:none;margin:0}
-@media (pointer:fine){.kbd-hint{display:block}}
-kbd{font-family:var(--f-num);font-size:12px;border:1px solid var(--line);border-bottom-width:2px;border-radius:4px;padding:0 5px;background:var(--surface)}
-
-/* stats */
-.stats{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px 8px}
-@media (max-width:420px){.stats{grid-template-columns:repeat(2,minmax(0,1fr))}}
-.stat .v{font-family:var(--f-num);font-size:30px;font-weight:700;line-height:1.1;font-variant-numeric:tabular-nums}
-.stat .v small{font-size:16px;color:var(--muted);font-weight:500}
-.progress{height:6px;background:var(--chip);border-radius:99px;overflow:hidden}
-.progress span{display:block;height:100%;background:var(--accent);border-radius:99px}
-.pbox{display:flex;flex-wrap:wrap;gap:8px 14px;align-items:center;justify-content:space-between;border-top:1px solid var(--line);padding-top:12px;font-size:14px}
-.pbox .pv{font-family:var(--f-num);font-size:24px;font-weight:700;font-variant-numeric:tabular-nums}
-.chart{width:100%;height:auto;display:block}
-.chart .grid{stroke:var(--line);stroke-width:1}
-.chart .band{fill:var(--band);stroke:none}
-.chart .exp{stroke:var(--accent);stroke-width:1.5;stroke-dasharray:5 4;fill:none}
-.chart .obs{stroke:var(--hit);stroke-width:2.5;fill:none}
-.chart .dot{fill:var(--hit)}
-.chart text{fill:var(--muted);font-size:11px;font-family:var(--f-body)}
-.legend{display:flex;flex-wrap:wrap;gap:4px 16px;font-size:12px;color:var(--muted)}
-.legend i{display:inline-block;width:18px;height:0;border-top:2.5px solid var(--hit);vertical-align:middle;margin-right:6px}
-.legend i.e{border-top:1.5px dashed var(--accent)}
-.legend i.b{border-top:8px solid var(--band)}
-.help{font-size:12px;color:var(--muted);margin:10px 0 0}
-
-/* method */
-details.method summary{cursor:pointer;font-weight:700;list-style:none;display:flex;justify-content:space-between;align-items:center;gap:8px}
-details.method summary::-webkit-details-marker{display:none}
-details.method summary::after{content:"＋";color:var(--muted);font-weight:400}
-details.method[open] summary::after{content:"－"}
-.method-body{display:grid;gap:14px;margin-top:12px;font-size:14px;max-width:65ch}
-.method-body h3{font-size:13px;letter-spacing:.06em;color:var(--muted);margin:0;font-weight:500}
-.method-body p,.method-body ul{margin:0}
-.method-body ul{padding-left:1.2em;display:grid;gap:4px}
-.method-body section{display:grid;gap:6px}
-.fx{font-family:ui-monospace,Menlo,Consolas,monospace;font-size:13px;background:var(--chip);border-radius:8px;padding:8px 12px;overflow-x:auto;white-space:pre;line-height:1.7}
+#shownInput{width:5ch;font-size:2rem;font-weight:bold;text-align:center}
+#kOther{width:5em}
+#results{display:grid;grid-template-columns:repeat(auto-fit,minmax(64px,1fr));gap:8px}
+#results button{min-height:64px;font-weight:bold}
+#results small{display:block}
+@media (pointer:coarse){#kbdHint{display:none}}
 
 /* log */
-.log{list-style:none;margin:0;padding:0;display:grid}
-.log li{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:4px 12px;align-items:center;padding:8px 0;border-top:1px solid var(--line);font-size:13px;font-variant-numeric:tabular-nums}
-.log li:first-child{border-top:0}
-.log .id{font-family:var(--f-num);font-size:18px;font-weight:600;color:var(--muted);min-width:3ch}
-.log .meta{color:var(--muted)}
-.log .y{font-weight:700;border-radius:99px;padding:2px 10px;background:var(--chip);white-space:nowrap}
-.log .y.hit{background:var(--hit-bg);color:var(--hit)}
-.log li.void{opacity:.55}
-.log li.void .main{text-decoration:line-through}
-.log li.empty{display:block;color:var(--muted);font-size:14px}
+#log{padding:0;list-style:none;font-variant-numeric:tabular-nums;word-break:keep-all}
+#log li{display:flex;align-items:baseline;gap:8px;padding:6px 0;border-top:1px solid var(--line)}
+#log b{margin-left:auto;white-space:nowrap}
+.void{opacity:.5;text-decoration:line-through}
 
-/* sheets */
-.scrim{position:fixed;inset:0;background:var(--scrim);z-index:20}
-.sheet{position:fixed;z-index:21;background:var(--surface);border:1px solid var(--line);overflow:auto;
-  left:0;right:0;bottom:0;max-height:85vh;border-radius:16px 16px 0 0;
-  padding:16px max(16px,env(safe-area-inset-right,0px)) calc(20px + env(safe-area-inset-bottom,0px)) max(16px,env(safe-area-inset-left,0px))}
-@media (min-width:700px){.sheet{left:auto;bottom:auto;top:calc(56px + env(safe-area-inset-top,0px));right:max(16px,calc((100vw - 1100px)/2));width:480px;max-height:calc(100vh - 80px);border-radius:12px;padding:16px;box-shadow:0 12px 32px #0000002e}}
-.sheet-head{display:flex;justify-content:space-between;align-items:center;gap:8px}
-.sheet-head h2{font-size:16px;margin:0}
-.form{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:14px}
-.field{display:grid;gap:4px;font-size:13px;min-width:0}
-.field span{color:var(--muted)}
-.field input{border:1px solid var(--line);border-radius:8px;background:var(--surface);padding:8px 10px;min-height:40px;font-variant-numeric:tabular-nums;width:100%}
-.check{display:flex;gap:8px;align-items:center;font-size:14px;margin-top:14px}
-.data-actions{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-top:14px}
-.confirm{margin-top:12px;border:1px solid var(--line);border-radius:10px;padding:12px;display:grid;gap:10px;font-size:14px}
-textarea{width:100%;min-height:140px;border:1px solid var(--line);border-radius:8px;background:var(--surface);padding:8px;font-family:ui-monospace,Menlo,monospace;font-size:12px}
+/* chart: observed = accent, model (expected line and band) = faded ink; the legend swatches reuse these classes */
+#chart{display:block;width:100%;height:auto}
+#chart text{fill:var(--muted);font-size:11px}
+.grid{stroke:var(--line)}
+.band{fill:var(--ink);opacity:.1}
+.exp{fill:none;stroke:var(--ink);stroke-width:1.5;stroke-dasharray:5 4;opacity:.5}
+.obs{fill:none;stroke:var(--accent);stroke-width:2;stroke-linejoin:round}
+.dot{fill:var(--accent);stroke:var(--bg);stroke-width:4;paint-order:stroke}
 
-.toast{position:fixed;left:50%;bottom:calc(16px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--bg);
-  padding:10px 16px;border-radius:99px;font-size:14px;max-width:calc(100% - 32px);z-index:30}
+/* overlays */
+#scrim{position:fixed;inset:0;background:#0008}
+.sheet{position:fixed;top:8px;left:8px;right:8px;max-width:480px;max-height:calc(100% - 16px);margin:0 auto;overflow:auto;background:var(--bg)}
+#toast{position:fixed;left:0;right:0;bottom:16px;width:fit-content;max-width:90%;margin:0 auto;padding:8px 16px;border-radius:4px;background:var(--ink);color:var(--bg)}
 </style>
+</head>
+<body>
+<header class="row split">
+  <h1>戻しドロー検証ログ</h1>
+  <span class="row">
+    <small id="saveState">読み込み中</small>
+    <button type="button" id="wakeBtn" hidden aria-pressed="false" title="画面を消さない">画面ON</button>
+    <button type="button" id="openSettings" aria-pressed="false">設定</button>
+    <button type="button" id="openData" aria-pressed="false">データ</button>
+  </span>
+</header>
 
-<div class="wrap">
-  <header class="top">
-    <h1>戻しドロー検証ログ</h1>
-    <div class="tools">
-      <span class="save-state" id="saveState">読み込み中</span>
-      <button class="ibtn" type="button" id="wakeBtn" hidden aria-pressed="false" title="画面を消さない">
-        <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg><span>画面ON</span></button>
-      <button class="ibtn" type="button" id="openSettings" aria-pressed="false">
-        <svg viewBox="0 0 24 24"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0"/><circle cx="16" cy="6" r="2"/><circle cx="10" cy="12" r="2"/><circle cx="18" cy="18" r="2"/></svg><span>設定</span></button>
-      <button class="ibtn" type="button" id="openData" aria-pressed="false">
-        <svg viewBox="0 0 24 24"><path d="M12 3v12M7 10l5 5 5-5M5 21h14"/></svg><span>データ</span></button>
-    </div>
-  </header>
+<div class="cols">
+  <div>
+    <section class="panel" aria-label="記録入力">
+      <div class="row split">
+        <span>① 効果を使う直前の山札枚数</span>
+        <small>戻した後 N = <b id="nOut">–</b></small>
+      </div>
+      <div class="row">
+        <button type="button" id="shownDown" aria-label="1減らす">−</button>
+        <input id="shownInput" type="number" inputmode="numeric" min="0" max="99" aria-label="使用前の山札枚数">
+        <button type="button" id="shownUp" aria-label="1増やす">＋</button>
+      </div>
+      <hr>
+      <div class="row split">
+        <span>② 戻した後、山札にある対象カード k</span>
+        <small id="pOut"></small>
+      </div>
+      <div class="row">
+        <span class="row" id="kChips"></span>
+        <label>その他の枚数 <input id="kOther" type="number" inputmode="numeric" min="0" max="40"></label>
+      </div>
+      <hr>
+      <div class="row split">
+        <span id="resLabel">③ 結果</span>
+        <small id="effOut"></small>
+      </div>
+      <div id="results"></div>
+      <div id="notes"></div>
+      <div class="row split">
+        <small id="kbdHint"></small>
+        <button type="button" id="resetInput">入力をリセット</button>
+      </div>
+    </section>
 
+    <section class="panel">
+      <div class="row split">
+        <span>記録</span>
+        <button type="button" id="undoBtn">直前の記録を取り消す</button>
+      </div>
+      <ul id="log"></ul>
+    </section>
+  </div>
 
-  <div class="cols">
-    <div class="stack">
-      <section class="panel" aria-label="記録入力">
-        <div class="step">
-          <div class="step-head">
-            <span class="label">① 効果を使う直前の山札枚数</span>
-            <span class="derived">戻した後 N = <b id="nOut">–</b></span>
-          </div>
-          <div class="bignum">
-            <button class="btn sq" type="button" id="shownDown" aria-label="1減らす">−</button>
-            <input id="shownInput" type="number" inputmode="numeric" min="0" max="99" aria-label="使用前の山札枚数">
-            <button class="btn sq" type="button" id="shownUp" aria-label="1増やす">＋</button>
-          </div>
-        </div>
-        <div class="step">
-          <div class="step-head">
-            <span class="label">② 戻した後、山札にある対象カード k</span>
-            <span class="derived" id="pOut"></span>
-          </div>
-          <div class="chips k" id="kChips"></div>
-          <label class="k-other">その他の枚数 <input id="kOther" type="number" inputmode="numeric" min="0" max="40"></label>
-        </div>
-        <div class="step">
-          <div class="step-head">
-            <span class="label" id="resLabel">③ 結果</span>
-            <span class="derived" id="effOut"></span>
-          </div>
-          <div class="results" id="results"></div>
-          <div class="notes" id="notes"></div>
-          <div class="row"><p class="kbd-hint" id="kbdHint"></p><button class="btn ghost" type="button" id="resetInput" style="margin-left:auto">入力をリセット</button></div>
-        </div>
-      </section>
+  <div>
+    <section class="panel" aria-label="集計">
+      <dl class="grid2">
+        <div><dt>有効試行</dt><dd id="sN">0</dd></div>
+        <div><dt>引けた枚数 S</dt><dd id="sS">0</dd></div>
+        <div><dt>期待値 μ</dt><dd id="sMu">0</dd></div>
+        <div><dt>S / μ</dt><dd id="sRatio">–</dd></div>
+      </dl>
+      <div class="row split"><small>目標までの進み具合</small><small id="progText"></small></div>
+      <progress id="progBar" value="0" aria-label="目標までの進み具合"></progress>
+      <svg id="chart" viewBox="0 0 600 230" role="img" aria-label="累積の観測値と期待値"></svg>
+      <div class="row">
+        <small><svg width="24" height="10" aria-hidden="true"><line class="obs" x1="0" y1="5" x2="24" y2="5"/></svg> 観測 S（累積）</small>
+        <small><svg width="24" height="10" aria-hidden="true"><rect class="band" width="24" height="10"/><line class="exp" x1="0" y1="5" x2="24" y2="5"/></svg> 期待値 μ（帯は μ ± 2σ）</small>
+      </div>
+      <dl class="grid2">
+        <div><dt>Z</dt><dd id="sZ">–</dd></div>
+        <div><dt>厳密 p 値</dt><dd id="sP">–</dd></div>
+      </dl>
+      <p><small id="peekNote"></small> <button type="button" id="peekBtn" hidden>今すぐ表示</button></p>
+    </section>
 
-      <section class="panel">
-        <div class="step-head" style="margin-bottom:6px">
-          <span class="label">記録</span>
-          <button class="btn ghost" type="button" id="undoBtn">直前の記録を取り消す</button>
-        </div>
-        <ul class="log" id="log"></ul>
-      </section>
-    </div>
+    <details class="panel" id="methodPanel">
+      <summary>期待値と検定の計算方法</summary>
+      <h3>記号</h3>
+      <ul>
+        <li>aᵢ：効果を使う直前の山札枚数（①で入力）</li>
+        <li>rᵢ：戻す枚数、mᵢ：引く枚数（記録ごとに保存）</li>
+        <li>Nᵢ = aᵢ + rᵢ：戻した後・引く直前の山札枚数</li>
+        <li>kᵢ：戻した後の山札にある対象カードの枚数（②で入力）</li>
+        <li>Yᵢ：引いた mᵢ 枚のうち対象カードの枚数（③で入力。1枚引きなら 1 か 0）</li>
+      </ul>
+      <h3>モデル（帰無仮説 H₀）</h3>
+      <ul>
+        <li>戻した後の山札は一様にシャッフルされる（すべての並びが等確率）</li>
+        <li>同名カードは区別しない</li>
+        <li>試行どうしは独立。Nᵢ, kᵢ は与えられた値として扱う（条件付き推測）</li>
+      </ul>
+      <p>このとき Yᵢ は超幾何分布に従います。</p>
+      <pre>P(Yᵢ = y) = C(kᵢ, y) · C(Nᵢ−kᵢ, mᵢ−y) / C(Nᵢ, mᵢ)
 
-    <div class="stack">
-      <section class="panel" aria-label="集計">
-        <div class="stats">
-          <div class="stat"><div class="label">有効試行</div><div class="v" id="sN">0</div></div>
-          <div class="stat"><div class="label">引けた枚数 S</div><div class="v" id="sS">0</div></div>
-          <div class="stat"><div class="label">期待値 μ</div><div class="v" id="sMu">0</div></div>
-          <div class="stat"><div class="label">S / μ</div><div class="v" id="sRatio">–</div></div>
-        </div>
-        <div style="margin-top:14px;display:grid;gap:6px">
-          <div class="row" style="justify-content:space-between"><span class="label">目標までの進み具合</span><span class="save-state" id="progText"></span></div>
-          <div class="progress"><span id="progBar" style="width:0%"></span></div>
-        </div>
-        <svg class="chart" id="chart" viewBox="0 0 600 230" role="img" aria-label="累積の観測値と期待値"></svg>
-        <div class="legend"><span><i></i>観測 S（累積）</span><span><i class="e"></i>期待値 μ</span><span><i class="b"></i>μ ± 2σ</span></div>
-        <div class="pbox" style="margin-top:12px">
-          <div>Z = <span class="pv" id="sZ">–</span></div>
-          <div>厳密 p 値 = <span class="pv" id="sP">–</span></div>
-          <button class="btn ghost" type="button" id="peekBtn" hidden>今すぐ表示</button>
-        </div>
-        <p class="help" id="peekNote"></p>
-      </section>
-
-      <details class="panel method" id="methodPanel">
-        <summary>期待値と検定の計算方法</summary>
-        <div class="method-body">
-          <section>
-            <h3>記号</h3>
-            <ul>
-              <li>aᵢ：効果を使う直前の山札枚数（①で入力）</li>
-              <li>rᵢ：戻す枚数、mᵢ：引く枚数（記録ごとに保存）</li>
-              <li>Nᵢ = aᵢ + rᵢ：戻した後・引く直前の山札枚数</li>
-              <li>kᵢ：戻した後の山札にある対象カードの枚数（②で入力）</li>
-              <li>Yᵢ：引いた mᵢ 枚のうち対象カードの枚数（③で入力。1枚引きなら 1 か 0）</li>
-            </ul>
-          </section>
-          <section>
-            <h3>モデル（帰無仮説 H₀）</h3>
-            <ul>
-              <li>戻した後の山札は一様にシャッフルされる（すべての並びが等確率）</li>
-              <li>同名カードは区別しない</li>
-              <li>試行どうしは独立。Nᵢ, kᵢ は与えられた値として扱う（条件付き推測）</li>
-            </ul>
-            <p>このとき Yᵢ は超幾何分布に従います。</p>
-            <div class="fx">P(Yᵢ = y) = C(kᵢ, y) · C(Nᵢ−kᵢ, mᵢ−y) / C(Nᵢ, mᵢ)
-
-mᵢ = 1 のとき：P(Yᵢ = 1) = kᵢ / Nᵢ</div>
-          </section>
-          <section>
-            <h3>期待値と分散</h3>
-            <div class="fx">E[Yᵢ]   = mᵢ · kᵢ / Nᵢ
+mᵢ = 1 のとき：P(Yᵢ = 1) = kᵢ / Nᵢ</pre>
+      <h3>期待値と分散</h3>
+      <pre>E[Yᵢ]   = mᵢ · kᵢ / Nᵢ
 Var[Yᵢ] = mᵢ · (kᵢ/Nᵢ) · (1 − kᵢ/Nᵢ) · (Nᵢ−mᵢ) / (Nᵢ−1)
 
-S = Σ Yᵢ      μ = Σ E[Yᵢ]      σ² = Σ Var[Yᵢ]</div>
-            <p>「引けた枚数 S」は実測、「期待値 μ」は理論上引けるはずの枚数です。S/μ が 1 より大きいほど理論より多く引いています。グラフの帯は累積の μ ± 2σ です。</p>
-          </section>
-          <section>
-            <h3>検定</h3>
-            <p>対立仮説は「引く確率が k/N ではない」（両側）です。H₀ のもとでの S の分布を、各試行の分布の畳み込みで正確に計算します。1枚引きだけならポアソン二項分布です。</p>
-            <div class="fx">f₀(0) = 1,  f₀(x) = 0 (x ≠ 0)
+S = Σ Yᵢ      μ = Σ E[Yᵢ]      σ² = Σ Var[Yᵢ]</pre>
+      <p>「引けた枚数 S」は実測、「期待値 μ」は理論上引けるはずの枚数です。S/μ が 1 より大きいほど理論より多く引いています。グラフの帯は累積の μ ± 2σ です。</p>
+      <h3>検定</h3>
+      <p>対立仮説は「引く確率が k/N ではない」（両側）です。H₀ のもとでの S の分布を、各試行の分布の畳み込みで正確に計算します。1枚引きだけならポアソン二項分布です。</p>
+      <pre>f₀(0) = 1,  f₀(x) = 0 (x ≠ 0)
 fⱼ(x) = Σ_y fⱼ₋₁(x−y) · P(Yⱼ = y)
-P(S = x) = fₙ(x)</div>
-            <p>厳密 p 値は、観測値 s と同じかそれより起こりにくい値の確率をすべて足したものです（浮動小数点誤差のため相対許容幅 10⁻⁷ で比較）。</p>
-            <div class="fx">p = Σ { P(S = x) : P(S = x) ≤ P(S = s) }
+P(S = x) = fₙ(x)</pre>
+      <p>厳密 p 値は、観測値 s と同じかそれより起こりにくい値の確率をすべて足したものです（浮動小数点誤差のため相対許容幅 10⁻⁷ で比較）。</p>
+      <pre>p = Σ { P(S = x) : P(S = x) ≤ P(S = s) }
 
-Z = (S − μ) / σ   （正規近似。参考値）</div>
-            <ul>
-              <li>離散分布なので、有意水準 5% のとき実際に誤って棄却する確率は 5% 以下になります（保守的）</li>
-              <li>試行数が少ないうちは S の分布が右に歪むため、Z より厳密 p 値を使ってください</li>
-              <li>取り消した記録と、k &gt; N や m &gt; N のように成り立たない記録は集計から除きます</li>
-              <li>設定で「p 値を隠す」がオンのときは、目標試行数に達するまで Z と p 値を表示しません。途中で何度も確認して止めると、誤って棄却する確率が 5% を超えるためです</li>
-            </ul>
-          </section>
-        </div>
-      </details>
-    </div>
+Z = (S − μ) / σ   （正規近似。参考値）</pre>
+      <ul>
+        <li>離散分布なので、有意水準 5% のとき実際に誤って棄却する確率は 5% 以下になります（保守的）</li>
+        <li>試行数が少ないうちは S の分布が右に歪むため、Z より厳密 p 値を使ってください</li>
+        <li>取り消した記録と、k &gt; N や m &gt; N のように成り立たない記録は集計から除きます</li>
+        <li>設定で「p 値を隠す」がオンのときは、目標試行数に達するまで Z と p 値を表示しません。途中で何度も確認して止めると、誤って棄却する確率が 5% を超えるためです</li>
+      </ul>
+    </details>
   </div>
 </div>
 
-<div class="scrim" id="scrim" hidden></div>
+<div id="scrim" hidden></div>
 
 <section class="sheet" id="settingsSheet" hidden role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
-  <div class="sheet-head"><h2 id="settingsTitle">実験の設定</h2><button class="btn ghost" type="button" data-close>閉じる</button></div>
-  <div class="form">
-    <label class="field"><span>対象カード名</span><input id="setTarget" type="text" placeholder="例: 〇〇の剣"></label>
-    <label class="field"><span>効果カード名</span><input id="setEffect" type="text" placeholder="例: △△の儀式"></label>
-    <label class="field"><span>戻す枚数</span><input id="setR" type="number" min="1" max="10" inputmode="numeric"></label>
-    <label class="field"><span>引く枚数</span><input id="setM" type="number" min="1" max="10" inputmode="numeric"></label>
-    <label class="field"><span>山札の初期値</span><input id="setDeck" type="number" min="1" max="99" inputmode="numeric"></label>
-    <label class="field"><span>同名カード上限</span><input id="setMax" type="number" min="1" max="10" inputmode="numeric"></label>
-    <label class="field"><span>目標試行数</span><input id="setTargetN" type="number" min="10" max="10000" inputmode="numeric"></label>
+  <div class="row split"><h2 id="settingsTitle">実験の設定</h2><button type="button" data-close>閉じる</button></div>
+  <div class="grid2">
+    <label>対象カード名<input id="setTarget" type="text" placeholder="例: 〇〇の剣"></label>
+    <label>効果カード名<input id="setEffect" type="text" placeholder="例: △△の儀式"></label>
+    <label>戻す枚数<input id="setR" type="number" min="1" max="10" inputmode="numeric"></label>
+    <label>引く枚数<input id="setM" type="number" min="1" max="10" inputmode="numeric"></label>
+    <label>山札の初期値<input id="setDeck" type="number" min="1" max="99" inputmode="numeric"></label>
+    <label>同名カード上限<input id="setMax" type="number" min="1" max="10" inputmode="numeric"></label>
+    <label>目標試行数<input id="setTargetN" type="number" min="10" max="10000" inputmode="numeric"></label>
   </div>
-  <label class="check"><input id="setHideP" type="checkbox"> 目標試行数に達するまで p 値を隠す</label>
-  <p class="help">戻す枚数・引く枚数は記録ごとに保存されるので、途中で変えても過去の記録は変わりません。引く枚数が2枚以上のときは超幾何分布で期待値と p 値を計算します。</p>
+  <p><label><input id="setHideP" type="checkbox"> 目標試行数に達するまで p 値を隠す</label></p>
+  <p><small>戻す枚数・引く枚数は記録ごとに保存されるので、途中で変えても過去の記録は変わりません。引く枚数が2枚以上のときは超幾何分布で期待値と p 値を計算します。</small></p>
 </section>
 
 <section class="sheet" id="dataSheet" hidden role="dialog" aria-modal="true" aria-labelledby="dataTitle">
-  <div class="sheet-head"><h2 id="dataTitle">データ</h2><button class="btn ghost" type="button" data-close>閉じる</button></div>
-  <div class="data-actions">
-    <button class="btn" type="button" id="expJson">JSON で書き出す</button>
-    <button class="btn" type="button" id="expCsv">CSV で書き出す</button>
-    <label class="btn" for="impFile" style="display:grid;place-items:center">ファイルを読み込む</label>
+  <div class="row split"><h2 id="dataTitle">データ</h2><button type="button" data-close>閉じる</button></div>
+  <div class="grid2">
+    <button type="button" id="expJson">JSON で書き出す</button>
+    <button type="button" id="expCsv">CSV で書き出す</button>
+    <label class="btn" for="impFile">ファイルを読み込む</label>
     <input id="impFile" type="file" accept=".json,.csv,application/json,text/csv" hidden>
-    <button class="btn danger" type="button" id="resetBtn">全データを削除</button>
+    <button class="warn" type="button" id="resetBtn">全データを削除</button>
   </div>
-  <div class="confirm" id="impConfirm" hidden></div>
-  <div class="confirm" id="resetConfirm" hidden>
-    <span>すべての記録と設定を削除します。元に戻せません。先に JSON で書き出しておくと安全です。</span>
-    <div class="row"><button class="btn danger" type="button" id="resetYes">削除する</button><button class="btn" type="button" id="resetNo">やめる</button></div>
+  <div class="panel" id="impConfirm" hidden></div>
+  <div class="panel" id="resetConfirm" hidden>
+    <p>すべての記録と設定を削除します。元に戻せません。先に JSON で書き出しておくと安全です。</p>
+    <div class="row"><button class="warn" type="button" id="resetYes">削除する</button><button type="button" id="resetNo">やめる</button></div>
   </div>
-  <div class="confirm" id="fallback" hidden>
-    <span id="fallbackMsg"></span>
+  <div class="panel" id="fallback" hidden>
+    <p id="fallbackMsg"></p>
     <textarea id="fallbackText" readonly aria-label="書き出したデータ"></textarea>
-    <div class="row"><button class="btn primary" type="button" id="fallbackCopy">コピー</button><button class="btn" type="button" id="fallbackClose">閉じる</button></div>
+    <div class="row"><button class="primary" type="button" id="fallbackCopy">コピー</button><button type="button" id="fallbackClose">閉じる</button></div>
   </div>
-  <p class="help">記録はこのブラウザに自動保存されます。別の端末に移すときは JSON を書き出して読み込んでください。取り消した記録も「取り消し済み」として残り、集計からだけ除外されます。</p>
+  <p><small>記録はこのブラウザに自動保存されます。別の端末に移すときは JSON を書き出して読み込んでください。取り消した記録も「取り消し済み」として残り、集計からだけ除外されます。</small></p>
 </section>
 
-<div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+<div id="toast" role="status" aria-live="polite" hidden></div>
 
 <script>
 (() => {
@@ -369,8 +277,8 @@ function save(){
 }
 function renderSave(){
   const el = $('saveState');
-  if (!saveOk){ el.textContent = '自動保存できません'; el.classList.add('err'); return; }
-  el.classList.remove('err');
+  if (!saveOk){ el.textContent = '自動保存できません'; el.classList.add('warn'); return; }
+  el.classList.remove('warn');
   el.textContent = lastSaved ? `保存 ${lastSaved.toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'})}` : '自動保存オン';
 }
 function clearSample(){ S.trials = S.trials.filter(t => !t.sample); S.sample = false; S.peeks = 0; }
@@ -446,7 +354,7 @@ function renderAll(){ renderInput(); renderLog(); renderStats(); renderSettings(
 
 function chipBtn(v, pressed, label, onclick){
   const b = document.createElement('button');
-  b.type='button'; b.className='chip'; b.textContent=v;
+  b.type='button'; b.textContent=v;
   b.setAttribute('aria-pressed', String(pressed)); b.setAttribute('aria-label', label);
   b.onclick = onclick; return b;
 }
@@ -467,31 +375,31 @@ function renderInput(){
   $('resLabel').textContent = inp.m===1 ? '③ 対象カードを引いたか' : `③ ${inp.m}枚のうち対象カードは何枚`;
   $('effOut').textContent = `${inp.r}枚戻して${inp.m}枚引く` + (st.effectName?`（${st.effectName}）`:'');
 
-  const res = $('results'); res.replaceChildren(); res.classList.toggle('multi', inp.m>1);
+  const res = $('results'); res.replaceChildren();
   const opts = inp.m===1 ? [[1,'引いた'],[0,'引かなかった']] : Array.from({length:inp.m+1},(_,y)=>[y,`${y}枚`]);
   for (const [y,label] of opts){
     const b = document.createElement('button');
-    b.type='button'; b.className='res' + (y>0?' hit':''); b.disabled = inp.issues.length>0;
+    b.type='button'; if (y>0) b.className='hit'; b.disabled = inp.issues.length>0;
     b.innerHTML = label + (st.targetName && inp.m===1 ? `<small>${esc(st.targetName)}</small>` : '');
     b.onclick = () => record(y); res.append(b);
   }
   const notes = $('notes'); notes.replaceChildren();
-  for (const i of inp.issues){ const d=document.createElement('div'); d.className='note'+(i.info?' info':''); d.textContent=i.t; notes.append(d); }
+  for (const i of inp.issues){ const d=document.createElement('div'); if (!i.info) d.className='warn'; d.textContent=i.t; notes.append(d); }
   $('kbdHint').innerHTML = inp.m===1
     ? 'キー操作：<kbd>↑</kbd><kbd>↓</kbd> 山札枚数　<kbd>1</kbd>–<kbd>9</kbd> k　<kbd>Y</kbd> 引いた　<kbd>N</kbd> 引かなかった　<kbd>Esc</kbd> リセット'
     : 'キー操作：<kbd>↑</kbd><kbd>↓</kbd> 山札枚数　<kbd>1</kbd>–<kbd>9</kbd> k　<kbd>Z</kbd><kbd>X</kbd><kbd>C</kbd><kbd>V</kbd>… 0,1,2,3枚　<kbd>Esc</kbd> リセット';
 }
 function renderLog(){
   const ul = $('log'); ul.replaceChildren();
-  if (!S.trials.length){ const li=document.createElement('li'); li.className='empty'; li.textContent='まだ記録がありません。山札枚数と k を選んで結果を押すと 1 件記録されます。'; ul.append(li); }
+  if (!S.trials.length){ const li=document.createElement('li'); li.textContent='まだ記録がありません。山札枚数と k を選んで結果を押すと 1 件記録されます。'; ul.append(li); }
   for (let i=S.trials.length-1; i>=Math.max(0,S.trials.length-40); i--){
     const t = S.trials[i], li = document.createElement('li');
     if (t.void) li.className='void';
     const yl = t.m===1 ? (t.y?'引いた':'外れ') : `${t.y}/${t.m}枚`;
     const pr = t.m===1 ? `${(t.k/t.N*100).toFixed(1)}%` : `期待 ${(t.m*t.k/t.N).toFixed(2)}`;
-    li.innerHTML = `<span class="id">${i+1}</span>
-      <span class="main">山 ${t.shown}→N ${t.N}　k ${t.k}　<span class="meta">${pr}${t.r!==1||t.m!==1?`　${t.r}戻${t.m}引`:''}${t.void?'　取り消し済み':''}</span></span>
-      <span class="y${t.y>0?' hit':''}">${yl}</span>`;
+    li.innerHTML = `<small>${i+1}</small>
+      <span>山 ${t.shown}→N ${t.N}　k ${t.k}　<small>${pr}${t.r!==1||t.m!==1?`　${t.r}戻${t.m}引`:''}${t.void?'　取り消し済み':''}</small></span>
+      <b${t.y>0?' class="hit"':''}>${yl}</b>`;
     ul.append(li);
   }
   const last = S.trials.at(-1), ub = $('undoBtn');
@@ -504,7 +412,7 @@ function renderStats(){
   $('sS').textContent = a.s;
   $('sMu').textContent = a.mu.toFixed(2);
   $('sRatio').textContent = a.mu>0 ? (a.s/a.mu).toFixed(2) : '–';
-  $('progBar').style.width = clamp(a.n/st.targetTrials*100,0,100)+'%';
+  $('progBar').value = clamp(a.n/st.targetTrials,0,1);
   $('progText').textContent = `${a.n} / ${st.targetTrials}`;
   const locked = st.hideP && a.n < st.targetTrials && !S.sample && !revealNow;
   $('sZ').textContent = a.n ? (locked ? '非表示' : a.z.toFixed(2)) : '–';
@@ -649,13 +557,13 @@ $('impFile').addEventListener('change', async e => {
     if (!data.trials.every(t => t.id && Number.isFinite(t.N) && Number.isFinite(t.k) && Number.isFinite(t.y))) throw new Error('記録の形式が正しくありません');
     pendingImport = data;
     const have = new Set(S.trials.map(t=>t.id)), nu = data.trials.filter(t=>!have.has(t.id)).length;
-    box.innerHTML = `<span><b>${esc(f.name)}</b>：${data.trials.length} 件。このうち未登録は ${nu} 件です。</span>
-      <div class="row"><button class="btn primary" type="button" data-act="merge">未登録の ${nu} 件を追加</button>
-      <button class="btn" type="button" data-act="replace">今のデータと置き換える</button>
-      <button class="btn" type="button" data-act="cancel">やめる</button></div>`;
+    box.innerHTML = `<p><b>${esc(f.name)}</b>：${data.trials.length} 件。このうち未登録は ${nu} 件です。</p>
+      <div class="row"><button class="primary" type="button" data-act="merge">未登録の ${nu} 件を追加</button>
+      <button type="button" data-act="replace">今のデータと置き換える</button>
+      <button type="button" data-act="cancel">やめる</button></div>`;
   } catch(err){
     pendingImport = null;
-    box.innerHTML = `<span>読み込めませんでした：${esc(err.message||err)}。このページで書き出した JSON か CSV を選んでください。</span><div class="row"><button class="btn" type="button" data-act="cancel">閉じる</button></div>`;
+    box.innerHTML = `<p>読み込めませんでした：${esc(err.message||err)}。このページで書き出した JSON か CSV を選んでください。</p><div class="row"><button type="button" data-act="cancel">閉じる</button></div>`;
   }
   box.hidden = false;
 });
@@ -699,4 +607,5 @@ draft.shown = prefill(); draft.k = prefillK();
 renderAll(); renderSave();
 })();
 </script>
-</body></html>
+</body>
+</html>
