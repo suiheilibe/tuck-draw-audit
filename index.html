@@ -98,7 +98,7 @@ header,.panel{margin-bottom:12px}
       </div>
       <hr>
       <div class="row split">
-        <span>② 戻した後、山札にある対象カード k</span>
+        <span>② 戻す前、山札にある対象カード</span>
         <small id="pOut"></small>
       </div>
       <div class="row">
@@ -156,7 +156,7 @@ header,.panel{margin-bottom:12px}
         <li>aᵢ：効果を使う直前の山札枚数（①で入力）</li>
         <li>rᵢ：戻す枚数、mᵢ：引く枚数（記録ごとに保存）</li>
         <li>Nᵢ = aᵢ + rᵢ：戻した後・引く直前の山札枚数</li>
-        <li>kᵢ：戻した後の山札にある対象カードの枚数（②で入力）</li>
+        <li>kᵢ：戻した後の山札にある対象カードの枚数（②で入力した戻す前の枚数 + rᵢ）</li>
         <li>Yᵢ：引いた mᵢ 枚のうち対象カードの枚数（③で入力。1枚引きなら 1 か 0）</li>
       </ul>
       <h3>モデル（帰無仮説 H₀）</h3>
@@ -246,7 +246,7 @@ const num = (v, d) => { const n = parseInt(v, 10); return Number.isFinite(n) ? n
 const esc = s => String(s).replace(/[&<>"]/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 
 let S, saveOk = true, lastSaved = null, revealNow = false;
-let draft = {shown:null, k:null};
+let draft = {shown:null, b:null};  // b: target copies in the deck before returning; k = b + r
 
 /* ---------- state ---------- */
 function fresh(){ return {v:2, settings:{...DEF}, trials:[], peeks:0, sample:false}; }
@@ -315,14 +315,15 @@ function analyze(){
 /* ---------- recording ---------- */
 function lastTrial(){ for (let i=S.trials.length-1;i>=0;i--) if (!S.trials[i].void && !S.trials[i].sample) return S.trials[i]; return null; }
 function prefill(){ const t = lastTrial(); return t ? Math.max(0, t.shown - 1) : S.settings.initDeck; }
-function prefillK(){ const t = lastTrial(); return t ? clamp(t.k - t.y + 1, 0, S.settings.maxCopies) : S.settings.maxCopies; }
+const bMax = () => Math.max(0, S.settings.maxCopies - S.settings.returnCount);
+function prefillB(){ const t = lastTrial(); return t ? clamp(t.k - t.y, 0, bMax()) : bMax(); }
 function chipBase(){ const t = lastTrial(); return t ? t.shown : S.settings.initDeck; }
 function currentInput(){
-  const st = S.settings, shown = draft.shown, k = draft.k, r = st.returnCount, m = st.drawCount;
+  const st = S.settings, shown = draft.shown, r = st.returnCount, m = st.drawCount, k = draft.b==null ? null : draft.b + r;
   const N = shown==null ? null : shown + r;
   const issues = [];
   if (shown==null) issues.push({t:'使用前の山札枚数を選んでください', info:true});
-  if (k==null) issues.push({t:'山札にある対象カードの枚数 k を選んでください', info:true});
+  if (k==null) issues.push({t:'戻す前に山札にある対象カードの枚数を選んでください', info:true});
   if (N!=null && k!=null && k>N) issues.push({t:`k（${k}）が山札枚数 N（${N}）を超えています`});
   if (N!=null && m>N) issues.push({t:`引く枚数（${m}）が山札枚数を超えています`});
   return {shown, k, r, m, N, issues};
@@ -332,22 +333,22 @@ function record(y){
   if (inp.issues.length) { renderInput(); return; }
   if (S.sample) clearSample();
   S.trials.push({id:uid(), ts:Date.now(), shown:inp.shown, r:inp.r, m:inp.m, N:inp.N, k:inp.k, y, void:false});
-  draft = {shown:prefill(), k:prefillK()};
+  draft = {shown:prefill(), b:prefillB()};
   save(); renderAll();
   toast(`#${S.trials.length} を記録（${inp.m===1 ? (y?'引いた':'引かなかった') : y+'枚引いた'}）`);
 }
 function undo(){
   for (let i=S.trials.length-1;i>=0;i--){
     const t = S.trials[i];
-    if (!t.void){ t.void = true; t.voidedAt = Date.now(); draft.shown = prefill(); draft.k = prefillK(); save(); renderAll(); toast(`#${i+1} を取り消しました`); return; }
+    if (!t.void){ t.void = true; t.voidedAt = Date.now(); draft.shown = prefill(); draft.b = prefillB(); save(); renderAll(); toast(`#${i+1} を取り消しました`); return; }
   }
 }
 function redo(){
   const t = S.trials.at(-1);
-  if (t && t.void){ t.void = false; delete t.voidedAt; draft.shown = prefill(); draft.k = prefillK(); save(); renderAll(); toast('取り消しを戻しました'); }
+  if (t && t.void){ t.void = false; delete t.voidedAt; draft.shown = prefill(); draft.b = prefillB(); save(); renderAll(); toast('取り消しを戻しました'); }
 }
 
-function resetInput(){ draft = {k:S.settings.maxCopies, shown:S.settings.initDeck}; $('kOther').value = ''; $('shownInput').value = draft.shown; renderInput(); }
+function resetInput(){ draft = {b:bMax(), shown:S.settings.initDeck}; $('kOther').value = ''; $('shownInput').value = draft.shown; renderInput(); }
 
 /* ---------- render ---------- */
 function renderAll(){ renderInput(); renderLog(); renderStats(); renderSettings(); }
@@ -365,13 +366,13 @@ function renderInput(){
 
 
   const kc = $('kChips'); kc.replaceChildren();
-  const kmax = Math.max(st.maxCopies, st.returnCount);
-  for (let v=1; v<=kmax; v++)
-    kc.append(chipBtn(v, draft.k===v, `k = ${v}`, () => { draft.k = v; $('kOther').value=''; renderInput(); }));
-  const ko = $('kOther'); if (document.activeElement !== ko) ko.value = (draft.k!=null && (draft.k>kmax || draft.k===0)) ? draft.k : '';
+  const bmax = bMax();
+  for (let v=0; v<=bmax; v++)
+    kc.append(chipBtn(v, draft.b===v, `戻す前 ${v}枚`, () => { draft.b = v; $('kOther').value=''; renderInput(); }));
+  const ko = $('kOther'); if (document.activeElement !== ko) ko.value = (draft.b!=null && draft.b>bmax) ? draft.b : '';
 
   const ok = inp.N!=null && inp.k!=null && inp.k<=inp.N;
-  $('pOut').innerHTML = !ok ? '' : inp.m===1 ? `理論確率 <b>${(inp.k/inp.N*100).toFixed(1)}%</b>` : `期待枚数 <b>${(inp.m*inp.k/inp.N).toFixed(2)}</b>`;
+  $('pOut').innerHTML = !ok ? '' : `戻した後 k = <b>${inp.k}</b>　` + (inp.m===1 ? `理論確率 <b>${(inp.k/inp.N*100).toFixed(1)}%</b>` : `期待枚数 <b>${(inp.m*inp.k/inp.N).toFixed(2)}</b>`);
   $('resLabel').textContent = inp.m===1 ? '③ 対象カードを引いたか' : `③ ${inp.m}枚のうち対象カードは何枚`;
   $('effOut').textContent = `${inp.r}枚戻して${inp.m}枚引く` + (st.effectName?`（${st.effectName}）`:'');
 
@@ -386,12 +387,12 @@ function renderInput(){
   const notes = $('notes'); notes.replaceChildren();
   for (const i of inp.issues){ const d=document.createElement('div'); if (!i.info) d.className='warn'; d.textContent=i.t; notes.append(d); }
   $('kbdHint').innerHTML = inp.m===1
-    ? 'キー操作：<kbd>↑</kbd><kbd>↓</kbd> 山札枚数　<kbd>1</kbd>–<kbd>9</kbd> k　<kbd>Y</kbd> 引いた　<kbd>N</kbd> 引かなかった　<kbd>Esc</kbd> リセット'
-    : 'キー操作：<kbd>↑</kbd><kbd>↓</kbd> 山札枚数　<kbd>1</kbd>–<kbd>9</kbd> k　<kbd>Z</kbd><kbd>X</kbd><kbd>C</kbd><kbd>V</kbd>… 0,1,2,3枚　<kbd>Esc</kbd> リセット';
+    ? 'キー操作：<kbd>↑</kbd><kbd>↓</kbd> 山札枚数　<kbd>0</kbd>–<kbd>9</kbd> 戻す前の枚数　<kbd>Y</kbd> 引いた　<kbd>N</kbd> 引かなかった　<kbd>Esc</kbd> リセット'
+    : 'キー操作：<kbd>↑</kbd><kbd>↓</kbd> 山札枚数　<kbd>0</kbd>–<kbd>9</kbd> 戻す前の枚数　<kbd>Z</kbd><kbd>X</kbd><kbd>C</kbd><kbd>V</kbd>… 0,1,2,3枚　<kbd>Esc</kbd> リセット';
 }
 function renderLog(){
   const ul = $('log'); ul.replaceChildren();
-  if (!S.trials.length){ const li=document.createElement('li'); li.textContent='まだ記録がありません。山札枚数と k を選んで結果を押すと 1 件記録されます。'; ul.append(li); }
+  if (!S.trials.length){ const li=document.createElement('li'); li.textContent='まだ記録がありません。山札枚数と対象カードの枚数を選んで結果を押すと 1 件記録されます。'; ul.append(li); }
   for (let i=S.trials.length-1; i>=Math.max(0,S.trials.length-40); i--){
     const t = S.trials[i], li = document.createElement('li');
     if (t.void) li.className='void';
@@ -477,7 +478,7 @@ const stepShown = d => { draft.shown = clamp((draft.shown ?? chipBase()) + d, 0,
 $('shownDown').onclick = () => stepShown(-1);
 $('shownUp').onclick = () => stepShown(1);
 $('shownInput').addEventListener('input', e => { draft.shown = e.target.value==='' ? null : clamp(num(e.target.value,0),0,99); renderInput(); });
-$('kOther').addEventListener('input', e => { draft.k = e.target.value==='' ? null : clamp(num(e.target.value,0),0,99); renderInput(); });
+$('kOther').addEventListener('input', e => { draft.b = e.target.value==='' ? null : clamp(num(e.target.value,0),0,99); renderInput(); });
 $('resetInput').onclick = resetInput;
 
 const bindSet = (id, key, isNum, min, max) => $(id).addEventListener('change', e => {
@@ -498,7 +499,7 @@ document.addEventListener('keydown', e => {
   const k = e.key.toLowerCase(), m = S.settings.drawCount, keys = 'zxcvbnm';
   if (e.key==='ArrowUp'){ e.preventDefault(); stepShown(1); }
   else if (e.key==='ArrowDown'){ e.preventDefault(); stepShown(-1); }
-  else if (/^[1-9]$/.test(k)){ draft.k = +k; renderInput(); }
+  else if (/^[0-9]$/.test(k)){ draft.b = +k; $('kOther').value=''; renderInput(); }
   else if (m===1 && k==='y') record(1);
   else if (m===1 && k==='n') record(0);
   else if (m>1 && keys.includes(k) && keys.indexOf(k)<=m) record(keys.indexOf(k));
@@ -580,11 +581,11 @@ $('impConfirm').addEventListener('click', e => {
     toast('置き換えました');
   }
   pendingImport = null; $('impConfirm').hidden = true;
-  if (act!=='cancel'){ draft.shown = prefill(); draft.k = prefillK(); save(); renderAll(); }
+  if (act!=='cancel'){ draft.shown = prefill(); draft.b = prefillB(); save(); renderAll(); }
 });
 $('resetBtn').onclick = () => { $('resetConfirm').hidden = false; };
 $('resetNo').onclick = () => { $('resetConfirm').hidden = true; };
-$('resetYes').onclick = () => { S = fresh(); draft = {shown:null,k:null}; save(); renderAll(); $('resetConfirm').hidden = true; toast('全データを削除しました'); };
+$('resetYes').onclick = () => { S = fresh(); save(); resetInput(); renderAll(); $('resetConfirm').hidden = true; toast('全データを削除しました'); };
 
 /* ---------- misc ---------- */
 let toastTimer;
@@ -603,7 +604,7 @@ if ('wakeLock' in navigator){
 }
 
 S = load();
-draft.shown = prefill(); draft.k = prefillK();
+draft.shown = prefill(); draft.b = prefillB();
 renderAll(); renderSave();
 })();
 </script>
