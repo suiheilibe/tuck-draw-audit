@@ -45,7 +45,10 @@ header,.panel{margin-bottom:12px}
 @media (min-width:900px){.cols{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}}
 
 /* input */
-#shownInput{width:2ch;padding-inline:4px;box-sizing:content-box;font-size:2rem;font-weight:bold;text-align:center}
+/* deck size: ±1 on the top row, ±10 below, the field spans both rows; the browser's spin buttons are hidden */
+#deck{display:grid;grid-template-columns:auto auto auto;gap:8px;justify-content:start}
+#shownInput{grid-row:span 2;width:5ch;font-size:2rem;font-weight:bold;text-align:center;appearance:textfield;-moz-appearance:textfield}
+#shownInput::-webkit-inner-spin-button,#shownInput::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
 #kOther{width:5em}
 #results{display:grid;grid-template-columns:repeat(auto-fit,minmax(64px,1fr));gap:8px}
 #results button{min-height:64px;font-weight:bold}
@@ -91,12 +94,12 @@ header,.panel{margin-bottom:12px}
         <span>① 効果を使う直前の山札枚数</span>
         <small>戻した後 N = <b id="nOut">–</b></small>
       </div>
-      <div class="row">
-        <button type="button" id="shownDown10" aria-label="10減らす">−10</button>
+      <div id="deck">
         <button type="button" id="shownDown" aria-label="1減らす">−</button>
         <input id="shownInput" type="number" inputmode="numeric" min="0" max="99" aria-label="使用前の山札枚数">
-        <button type="button" id="shownUp" aria-label="1増やす">＋</button>
-        <button type="button" id="shownUp10" aria-label="10増やす">＋10</button>
+        <button type="button" id="shownUp" aria-label="1増やす">+</button>
+        <button type="button" id="shownDown10" aria-label="10減らす">−10</button>
+        <button type="button" id="shownUp10" aria-label="10増やす">+10</button>
       </div>
       <hr>
       <div class="row split">
