@@ -28,7 +28,7 @@ A logging and testing tool for Shadowverse effects that "return a card from your
 
 - No prediction display, no match separation, no turn display
 - Settings and data operations live in sheets opened from header buttons, so they take no space
-- No row of number buttons for the deck size. Input is via ± buttons, direct entry, and the ↑↓ keys
+- No row of number buttons for the deck size. Input is via ±1 and ±10 buttons, direct entry, and the ↑↓ keys
 - Defaults after recording
   - deck size = previous a − 1
   - b = clamp(previous k − y, 0, max copies − r). With one-card draws, k stays the same after a hit and goes up by 1 after a miss

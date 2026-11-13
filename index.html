@@ -45,7 +45,7 @@ header,.panel{margin-bottom:12px}
 @media (min-width:900px){.cols{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}}
 
 /* input */
-#shownInput{width:5ch;font-size:2rem;font-weight:bold;text-align:center}
+#shownInput{width:2ch;padding-inline:4px;box-sizing:content-box;font-size:2rem;font-weight:bold;text-align:center}
 #kOther{width:5em}
 #results{display:grid;grid-template-columns:repeat(auto-fit,minmax(64px,1fr));gap:8px}
 #results button{min-height:64px;font-weight:bold}
@@ -92,9 +92,11 @@ header,.panel{margin-bottom:12px}
         <small>戻した後 N = <b id="nOut">–</b></small>
       </div>
       <div class="row">
+        <button type="button" id="shownDown10" aria-label="10減らす">−10</button>
         <button type="button" id="shownDown" aria-label="1減らす">−</button>
         <input id="shownInput" type="number" inputmode="numeric" min="0" max="99" aria-label="使用前の山札枚数">
         <button type="button" id="shownUp" aria-label="1増やす">＋</button>
+        <button type="button" id="shownUp10" aria-label="10増やす">＋10</button>
       </div>
       <hr>
       <div class="row split">
@@ -477,6 +479,8 @@ $('peekBtn').onclick = () => { revealNow = true; S.peeks++; save(); renderStats(
 const stepShown = d => { draft.shown = clamp((draft.shown ?? chipBase()) + d, 0, 99); renderInput(); };
 $('shownDown').onclick = () => stepShown(-1);
 $('shownUp').onclick = () => stepShown(1);
+$('shownDown10').onclick = () => stepShown(-10);
+$('shownUp10').onclick = () => stepShown(10);
 $('shownInput').addEventListener('input', e => { draft.shown = e.target.value==='' ? null : clamp(num(e.target.value,0),0,99); renderInput(); });
 $('kOther').addEventListener('input', e => { draft.b = e.target.value==='' ? null : clamp(num(e.target.value,0),0,99); renderInput(); });
 $('resetInput').onclick = resetInput;
