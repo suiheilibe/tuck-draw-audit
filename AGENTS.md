@@ -1,59 +1,61 @@
-# 戻しドロー検証ログ
+# Tuck-Draw Audit Log (戻しドロー検証ログ)
 
-シャドウバースの「手札のカードを山札に戻して引く」効果で、戻した対象カード（同名カードは区別しない）を引く確率が理論どおり k/N になっているかを検証するための記録・検定ツール。
+A logging and testing tool for Shadowverse effects that "return a card from your hand to the deck, then draw". It checks whether the probability of drawing the returned target card (copies with the same name are not distinguished) matches the theoretical k/N.
 
-## ファイル
+## Files
 
-- `index.html`：ツール本体。HTML・CSS・JS を1ファイルにまとめている。ビルド不要で、ブラウザで開けばそのまま動く。
+- `index.html`: the whole tool. HTML, CSS, and JS in a single file. No build step; open it in a browser and it works.
 
-## 用語
+## Terms
 
-- a：効果を使う直前の山札枚数（入力①）
-- r：戻す枚数、m：引く枚数（設定。記録ごとに保存）
-- N = a + r：戻した後・引く直前の山札枚数
-- b：戻す前の山札にある対象カードの枚数（入力②。ボタンは 0〜同名カード上限 − r、それ以外は「その他の枚数」に入力）
-- k = b + r：戻した後の山札にある対象カードの枚数（記録には k を保存する）
-- y：引いた m 枚のうち対象カードの枚数（入力③）
+- a: deck size right before the effect is used (input ①)
+- r: number of cards returned, m: number of cards drawn (settings; stored with each record)
+- N = a + r: deck size after returning, right before drawing
+- b: copies of the target card in the deck before returning (input ②; buttons cover 0 to max copies − r, other values go in the 「その他の枚数」 field)
+- k = b + r: copies of the target card in the deck after returning (records store k)
+- y: copies of the target card among the m drawn cards (input ③)
 
-## 統計
+## Statistics
 
-- 帰無仮説：山札は一様にシャッフルされ、試行どうしは独立。N, k は与えられた値として扱う（条件付き推測）
-- 各試行の Y は超幾何分布 H(N, k, m) に従う。m = 1 ならベルヌーイ分布 Bernoulli(k/N)
-- S = ΣY。帰無分布は各試行の分布の畳み込みで正確に計算する（1枚引きならポアソン二項分布）
-- 両側 p 値：P(S=x) ≤ P(S=s_obs) を満たす x について確率を合計する（相対許容幅 1e-7）
-- Z = (S−μ)/σ は参考値。グラフの帯は累積の μ ± 2σ
-- 目標試行数（既定 300）に達するまで p 値を隠す。途中で表示した回数は `peeks` に記録する
+- Null hypothesis: the deck is shuffled uniformly and trials are independent. N and k are treated as given (conditional inference)
+- Each trial's Y follows the hypergeometric distribution H(N, k, m). With m = 1 it is Bernoulli(k/N)
+- S = ΣY. Its null distribution is computed exactly by convolving the per-trial distributions (Poisson binomial when every trial draws one card)
+- Two-sided p-value: sum the probabilities of all x with P(S=x) ≤ P(S=s_obs) (relative tolerance 1e-7)
+- Z = (S−μ)/σ is for reference only. The chart band is the cumulative μ ± 2σ
+- p-values stay hidden until the target number of trials (default 300) is reached. The number of early reveals is recorded in `peeks`
 
-## 決まっている仕様（ユーザーの指定）
+## Fixed specifications (decided by the user)
 
-- 予測表示、試合の区別、ターン表示は入れない
-- 設定とデータの操作はヘッダーのボタンから開くシートに置き、場所を取らないようにする
-- 山札枚数の数字ボタン列は置かない。入力手段は ± ボタン、直接入力、↑↓ キー
-- 記録後の初期値
-  - 山札枚数 = 前回の a − 1
-  - b = clamp(前回の k − y, 0, 同名カード上限 − r)。1枚引きなら、引いたときは k が変わらず、引かなかったときは k が +1 になる
-- 記録が1件もないときの初期値とリセット：山札枚数 = 山札の初期値（既定 35）、b = 同名カード上限 − r（既定 2）。PC では Esc キーもリセット。全データを削除したときも入力をこの値にリセットする
-- サンプルデータは表示しない
-- デザインと CSS は極力シンプルにする。Web フォントは使わず、環境ごとの標準フォントで表示する（環境による見た目の差は許容）
-- 記録は削除しない。取り消しは `void` フラグを立てるだけで、集計からは除く
-- 設定の既定値：山札の初期値 35、同名カード上限 3、戻す枚数 1、引く枚数 1、目標試行数 300、p 値を隠す オン
+- No prediction display, no match separation, no turn display
+- Settings and data operations live in sheets opened from header buttons, so they take no space
+- No row of number buttons for the deck size. Input is via ± buttons, direct entry, and the ↑↓ keys
+- Defaults after recording
+  - deck size = previous a − 1
+  - b = clamp(previous k − y, 0, max copies − r). With one-card draws, k stays the same after a hit and goes up by 1 after a miss
+- Defaults when there are no records, and on reset: deck size = initial deck size (default 35), b = max copies − r (default 2). On PC the Esc key also resets. Deleting all data also resets the input to these values
+- No sample data is shown
+- Keep the design and CSS as simple as possible. No web fonts; use each platform's default fonts (differences between environments are acceptable)
+- Records are never deleted. Undo only sets the `void` flag, which excludes the record from the statistics
+- Default settings: initial deck size 35, max copies 3, cards returned 1, cards drawn 1, target trials 300, hide p-value on
 
-## データ
+## Data
 
-- localStorage のキー `svbd.v2` に自動保存する
-- JSON（全状態）と CSV（試行データ）で書き出し、読み込みができる。読み込み時は「追加」か「置き換え」を選ぶ
-- CSV の列：id, timestamp, shown_before, returned, drawn, N, k, y, expected, void, voided_at, sample
-- localStorage は開いているページの場所（オリジン）ごとに別になる。ほかの場所へ移すときは JSON を書き出して読み込む
+- Saved automatically to localStorage under the key `svbd.v2`
+- Export and import as JSON (full state) and CSV (trial data). On import, the user chooses "add" or "replace"
+- CSV columns: id, timestamp, shown_before, returned, drawn, N, k, y, expected, void, voided_at, sample
+- localStorage is separate per page location (origin). To move data elsewhere, export JSON and import it
 
-## 今後の候補
+## Future candidates
 
-- PC とスマホの間でリアルタイムに同期する（Web ベースで、PC でプレイ中にスマホから入力、またはその逆）
-- 片側検定や mid-p への切り替え
-- 逐次検定（e値など）を入れて、途中で結果を見ても有意水準を保てるようにする
+- Real-time sync between PC and phone (web-based; enter results on the phone while playing on the PC, or the other way around)
+- Switching to a one-sided test or mid-p
+- Sequential testing (e-values etc.) so the significance level holds even when results are checked early
 
-## 作業上の注意
+## Working notes
 
-- 外部のスクリプトやフォントは読み込まない。フォントは `system-ui`（数式とキー表示だけ等幅）
-- 色は `:root` のトークン 6 個（`--bg` `--ink` `--muted` `--line` `--accent` `--warn`）で定義し、ダークモードは OS の設定に従う
-- CSS は要素セレクタと少数のクラス（`.row` `.split` `.grid2` `.panel` `.sheet` と状態用の `.hit` `.warn` `.void` `.primary`）で組んでいる。見た目を足す前に、既存のもので足りないか確認する
-- ゲームクライアントのメモリや通信は読まない。入力は手動で行う
+- Write commit messages in English
+- The UI text is Japanese
+- No external scripts or fonts are loaded. Fonts are `system-ui` (monospace only for formulas and key labels)
+- Colors are defined as six tokens in `:root` (`--bg` `--ink` `--muted` `--line` `--accent` `--warn`); dark mode follows the OS setting
+- The CSS is built from element selectors and a few classes (`.row` `.split` `.grid2` `.panel` `.sheet`, plus the state classes `.hit` `.warn` `.void` `.primary`). Before adding styles, check whether existing ones already cover the need
+- Do not read the game client's memory or network traffic. All input is manual
