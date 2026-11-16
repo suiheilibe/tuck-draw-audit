@@ -1,0 +1,245 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>戻しドロー検証ログ</title>
+<style>
+/* Colors come only from these tokens; dark mode follows the OS setting. No web fonts. */
+:root{
+  color-scheme:light dark; accent-color:var(--accent);
+  --bg:#fff; --ink:#1a1f2b; --muted:#5d6576; --line:#d9dce5; --accent:#2346b4; --warn:#b3261e;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#10131a; --ink:#e6e9f0; --muted:#9aa2b3; --line:#2a3040; --accent:#6a8bfc; --warn:#ff8a80;
+}}
+
+/* base */
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+body{max-width:1000px;margin:0 auto;padding:12px;background:var(--bg);color:var(--ink);font-family:system-ui,sans-serif;line-height:1.5}
+h1,h2,h3{margin:0;font-size:1rem}
+small,dt{color:var(--muted);font-size:.8rem;font-weight:normal}
+dd{margin:0;font-size:1.5rem;font-weight:bold}
+hr{border:0;border-top:1px solid var(--line)}
+
+/* controls */
+button,input,textarea,.btn{font:inherit;color:inherit;background:none;border:1px solid var(--muted);border-radius:4px;padding:9px 12px}
+button,.btn{min-width:44px;text-align:center;cursor:pointer}
+:disabled{opacity:.4;cursor:default}
+[aria-pressed=true],.primary{background:var(--accent);border-color:var(--accent);color:var(--bg)}
+.hit{border-color:var(--accent);color:var(--accent)}
+.warn{color:var(--warn)}
+pre,textarea,kbd{overflow-x:auto;font:.8rem/1.6 ui-monospace,Menlo,Consolas,monospace}
+textarea{display:block;width:100%;min-height:8em}
+progress{display:block;width:100%}
+
+/* layout: blocks are spaced by 12px margins, .row/.grid2 lay out their children */
+.row{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.split>:last-child{margin-left:auto}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.grid2 input{width:100%}
+header,.panel{margin-bottom:12px}
+.panel,.sheet{border:1px solid var(--line);border-radius:4px;padding:0 12px}
+.panel>*,.sheet>*{margin:12px 0}
+@media (min-width:900px){.cols{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}}
+
+/* input */
+/* deck size: ±1 on the top row, ±10 below, the field spans both rows; the browser's spin buttons are hidden */
+#deck{display:grid;grid-template-columns:auto auto auto;gap:8px;justify-content:start}
+#shownInput{grid-row:span 2;width:5ch;font-size:2rem;font-weight:bold;text-align:center;appearance:textfield;-moz-appearance:textfield}
+#shownInput::-webkit-inner-spin-button,#shownInput::-webkit-outer-spin-button{-webkit-appearance:none;margin:0}
+#kOther{width:5em}
+#results{display:grid;grid-template-columns:repeat(auto-fit,minmax(64px,1fr));gap:8px}
+#results button{min-height:64px;font-weight:bold}
+#results small{display:block}
+@media (pointer:coarse){#kbdHint{display:none}}
+
+/* log */
+#log{padding:0;list-style:none;font-variant-numeric:tabular-nums;word-break:keep-all}
+#log li{display:flex;align-items:baseline;gap:8px;padding:6px 0;border-top:1px solid var(--line)}
+#log b{margin-left:auto;white-space:nowrap}
+.void{opacity:.5;text-decoration:line-through}
+
+/* chart: observed = accent, model (expected line and band) = faded ink; the legend swatches reuse these classes */
+#chart{display:block;width:100%;height:auto}
+#chart text{fill:var(--muted);font-size:11px}
+.grid{stroke:var(--line)}
+.band{fill:var(--ink);opacity:.1}
+.exp{fill:none;stroke:var(--ink);stroke-width:1.5;stroke-dasharray:5 4;opacity:.5}
+.obs{fill:none;stroke:var(--accent);stroke-width:2;stroke-linejoin:round}
+.dot{fill:var(--accent);stroke:var(--bg);stroke-width:4;paint-order:stroke}
+
+/* overlays */
+#scrim{position:fixed;inset:0;background:#0008}
+.sheet{position:fixed;top:8px;left:8px;right:8px;max-width:480px;max-height:calc(100% - 16px);margin:0 auto;overflow:auto;background:var(--bg)}
+#toast{position:fixed;left:0;right:0;bottom:16px;width:fit-content;max-width:90%;margin:0 auto;padding:8px 16px;border-radius:4px;background:var(--ink);color:var(--bg)}
+</style>
+</head>
+<body>
+<header class="row split">
+  <h1>戻しドロー検証ログ</h1>
+  <span class="row">
+    <small id="saveState">読み込み中</small>
+    <button type="button" id="wakeBtn" hidden aria-pressed="false" title="画面を消さない">画面ON</button>
+    <button type="button" id="openSettings" aria-pressed="false">設定</button>
+    <button type="button" id="openData" aria-pressed="false">データ</button>
+  </span>
+</header>
+
+<div class="cols">
+  <div>
+    <section class="panel" aria-label="記録入力">
+      <div class="row split">
+        <span>① 効果を使う直前の山札枚数</span>
+        <small>戻した後 N = <b id="nOut">–</b></small>
+      </div>
+      <div id="deck">
+        <button type="button" id="shownDown" aria-label="1減らす">−</button>
+        <input id="shownInput" type="number" inputmode="numeric" min="0" max="99" aria-label="使用前の山札枚数">
+        <button type="button" id="shownUp" aria-label="1増やす">+</button>
+        <button type="button" id="shownDown10" aria-label="10減らす">−10</button>
+        <button type="button" id="shownUp10" aria-label="10増やす">+10</button>
+      </div>
+      <hr>
+      <div class="row split">
+        <span>② 戻す前、山札にある対象カード</span>
+        <small id="pOut"></small>
+      </div>
+      <div class="row">
+        <span class="row" id="kChips"></span>
+        <label>その他の枚数 <input id="kOther" type="number" inputmode="numeric" min="0" max="40"></label>
+      </div>
+      <hr>
+      <div class="row split">
+        <span id="resLabel">③ 結果</span>
+        <small id="effOut"></small>
+      </div>
+      <div id="results"></div>
+      <div id="notes"></div>
+      <div class="row split">
+        <small id="kbdHint"></small>
+        <button type="button" id="resetInput">入力をリセット</button>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="row split">
+        <span>記録</span>
+        <button type="button" id="undoBtn">直前の記録を取り消す</button>
+      </div>
+      <ul id="log"></ul>
+    </section>
+  </div>
+
+  <div>
+    <section class="panel" aria-label="集計">
+      <dl class="grid2">
+        <div><dt>有効試行</dt><dd id="sN">0</dd></div>
+        <div><dt>引けた枚数 S</dt><dd id="sS">0</dd></div>
+        <div><dt>期待値 μ</dt><dd id="sMu">0</dd></div>
+        <div><dt>S / μ</dt><dd id="sRatio">–</dd></div>
+      </dl>
+      <div class="row split"><small>目標までの進み具合</small><small id="progText"></small></div>
+      <progress id="progBar" value="0" aria-label="目標までの進み具合"></progress>
+      <svg id="chart" viewBox="0 0 600 230" role="img" aria-label="累積の観測値と期待値"></svg>
+      <div class="row">
+        <small><svg width="24" height="10" aria-hidden="true"><line class="obs" x1="0" y1="5" x2="24" y2="5"/></svg> 観測 S（累積）</small>
+        <small><svg width="24" height="10" aria-hidden="true"><rect class="band" width="24" height="10"/><line class="exp" x1="0" y1="5" x2="24" y2="5"/></svg> 期待値 μ（帯は μ ± 2σ）</small>
+      </div>
+      <dl class="grid2">
+        <div><dt>Z</dt><dd id="sZ">–</dd></div>
+        <div><dt>厳密 p 値</dt><dd id="sP">–</dd></div>
+      </dl>
+      <p><small id="peekNote"></small> <button type="button" id="peekBtn" hidden>今すぐ表示</button></p>
+    </section>
+
+    <details class="panel" id="methodPanel">
+      <summary>期待値と検定の計算方法</summary>
+      <h3>記号</h3>
+      <ul>
+        <li>aᵢ：効果を使う直前の山札枚数（①で入力）</li>
+        <li>rᵢ：戻す枚数、mᵢ：引く枚数（記録ごとに保存）</li>
+        <li>Nᵢ = aᵢ + rᵢ：戻した後・引く直前の山札枚数</li>
+        <li>kᵢ：戻した後の山札にある対象カードの枚数（②で入力した戻す前の枚数 + rᵢ）</li>
+        <li>Yᵢ：引いた mᵢ 枚のうち対象カードの枚数（③で入力。1枚引きなら 1 か 0）</li>
+      </ul>
+      <h3>モデル（帰無仮説 H₀）</h3>
+      <ul>
+        <li>戻した後の山札は一様にシャッフルされる（すべての並びが等確率）</li>
+        <li>同名カードは区別しない</li>
+        <li>試行どうしは独立。Nᵢ, kᵢ は与えられた値として扱う（条件付き推測）</li>
+      </ul>
+      <p>このとき Yᵢ は超幾何分布に従います。</p>
+      <pre>P(Yᵢ = y) = C(kᵢ, y) · C(Nᵢ−kᵢ, mᵢ−y) / C(Nᵢ, mᵢ)
+
+mᵢ = 1 のとき：P(Yᵢ = 1) = kᵢ / Nᵢ</pre>
+      <h3>期待値と分散</h3>
+      <pre>E[Yᵢ]   = mᵢ · kᵢ / Nᵢ
+Var[Yᵢ] = mᵢ · (kᵢ/Nᵢ) · (1 − kᵢ/Nᵢ) · (Nᵢ−mᵢ) / (Nᵢ−1)
+
+S = Σ Yᵢ      μ = Σ E[Yᵢ]      σ² = Σ Var[Yᵢ]</pre>
+      <p>「引けた枚数 S」は実測、「期待値 μ」は理論上引けるはずの枚数です。S/μ が 1 より大きいほど理論より多く引いています。グラフの帯は累積の μ ± 2σ です。</p>
+      <h3>検定</h3>
+      <p>対立仮説は「引く確率が k/N ではない」（両側）です。H₀ のもとでの S の分布を、各試行の分布の畳み込みで正確に計算します。1枚引きだけならポアソン二項分布です。</p>
+      <pre>f₀(0) = 1,  f₀(x) = 0 (x ≠ 0)
+fⱼ(x) = Σ_y fⱼ₋₁(x−y) · P(Yⱼ = y)
+P(S = x) = fₙ(x)</pre>
+      <p>厳密 p 値は、観測値 s と同じかそれより起こりにくい値の確率をすべて足したものです（浮動小数点誤差のため相対許容幅 10⁻⁷ で比較）。</p>
+      <pre>p = Σ { P(S = x) : P(S = x) ≤ P(S = s) }
+
+Z = (S − μ) / σ   （正規近似。参考値）</pre>
+      <ul>
+        <li>離散分布なので、有意水準 5% のとき実際に誤って棄却する確率は 5% 以下になります（保守的）</li>
+        <li>試行数が少ないうちは S の分布が右に歪むため、Z より厳密 p 値を使ってください</li>
+        <li>取り消した記録と、k &gt; N や m &gt; N のように成り立たない記録は集計から除きます</li>
+        <li>設定で「p 値を隠す」がオンのときは、目標試行数に達するまで Z と p 値を表示しません。途中で何度も確認して止めると、誤って棄却する確率が 5% を超えるためです</li>
+      </ul>
+    </details>
+  </div>
+</div>
+
+<div id="scrim" hidden></div>
+
+<section class="sheet" id="settingsSheet" hidden role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+  <div class="row split"><h2 id="settingsTitle">実験の設定</h2><button type="button" data-close>閉じる</button></div>
+  <div class="grid2">
+    <label>対象カード名<input id="setTarget" type="text" placeholder="例: 〇〇の剣"></label>
+    <label>効果カード名<input id="setEffect" type="text" placeholder="例: △△の儀式"></label>
+    <label>戻す枚数<input id="setR" type="number" min="1" max="10" inputmode="numeric"></label>
+    <label>引く枚数<input id="setM" type="number" min="1" max="10" inputmode="numeric"></label>
+    <label>山札の初期値<input id="setDeck" type="number" min="1" max="99" inputmode="numeric"></label>
+    <label>同名カード上限<input id="setMax" type="number" min="1" max="10" inputmode="numeric"></label>
+    <label>目標試行数<input id="setTargetN" type="number" min="10" max="10000" inputmode="numeric"></label>
+  </div>
+  <p><label><input id="setHideP" type="checkbox"> 目標試行数に達するまで p 値を隠す</label></p>
+  <p><small>戻す枚数・引く枚数は記録ごとに保存されるので、途中で変えても過去の記録は変わりません。引く枚数が2枚以上のときは超幾何分布で期待値と p 値を計算します。</small></p>
+</section>
+
+<section class="sheet" id="dataSheet" hidden role="dialog" aria-modal="true" aria-labelledby="dataTitle">
+  <div class="row split"><h2 id="dataTitle">データ</h2><button type="button" data-close>閉じる</button></div>
+  <div class="grid2">
+    <button type="button" id="expJson">JSON で書き出す</button>
+    <button type="button" id="expCsv">CSV で書き出す</button>
+    <label class="btn" for="impFile">ファイルを読み込む</label>
+    <input id="impFile" type="file" accept=".json,.csv,application/json,text/csv" hidden>
+    <button class="warn" type="button" id="resetBtn">全データを削除</button>
+  </div>
+  <div class="panel" id="impConfirm" hidden></div>
+  <div class="panel" id="resetConfirm" hidden>
+    <p>すべての記録と設定を削除します。元に戻せません。先に JSON で書き出しておくと安全です。</p>
+    <div class="row"><button class="warn" type="button" id="resetYes">削除する</button><button type="button" id="resetNo">やめる</button></div>
+  </div>
+  <div class="panel" id="fallback" hidden>
+    <p id="fallbackMsg"></p>
+    <textarea id="fallbackText" readonly aria-label="書き出したデータ"></textarea>
+    <div class="row"><button class="primary" type="button" id="fallbackCopy">コピー</button><button type="button" id="fallbackClose">閉じる</button></div>
+  </div>
+  <p><small>記録はこのブラウザに自動保存されます。別の端末に移すときは JSON を書き出して読み込んでください。取り消した記録も「取り消し済み」として残り、集計からだけ除外されます。</small></p>
+</section>
+
+<div id="toast" role="status" aria-live="polite" hidden></div>
+
+<script type="module" src="main.js"></script>
+</body>
+</html>
