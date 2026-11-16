@@ -4,7 +4,30 @@ A logging and testing tool for Shadowverse effects that "return a card from your
 
 ## Files
 
-- `index.html`: the whole tool. HTML, CSS, and JS in a single file. No build step; open it in a browser and it works.
+The published tool is a single HTML file, `dist/index.html`, built from the sources below.
+
+- `src/index.html`: HTML and CSS. Loads `main.js` as an ES module during development
+- `src/*.js`: the script, split into ES modules. Imports only go down this list, so there are no cycles
+  - `util.js`: DOM and number helpers, toast
+  - `state.js`: saved state `S` (replace it only through `setS()`), the input draft, localStorage
+  - `stats.js`: the exact test (no DOM; covered by `test/stats.test.js`)
+  - `input.js`: values derived from the state and draft (defaults after recording, current input and its problems)
+  - `render.js`: drawing. It attaches no handlers that change state
+  - `actions.js`: record, undo, redo, reset input
+  - `io.js`: export, import, delete all data. `initIo()` attaches its handlers
+  - `main.js`: entry point. Attaches the remaining handlers, then loads the state and draws
+- `scripts/build.mjs`: bundles the modules with Rollup and inlines them into `dist/index.html`
+- `scripts/serve.mjs`: development server for `src/` (ES modules do not load from `file://`)
+- `test/`: `node --test` tests
+- `.github/workflows/pages.yml`: tests and builds on every push and pull request; publishes `dist/` to GitHub Pages from `main`
+
+## Development
+
+- `npm ci` once, then `npm run dev` and open http://127.0.0.1:8000/. Reload after editing; there is no build step during development
+- `npm test` runs the tests; `npm run build` writes `dist/index.html`, which also works when opened directly from disk
+- The build fails on any Rollup warning (including circular imports) and when a module in `src/` is missing from the bundle. A module that only attaches handlers must export an `init…()` function that `main.js` calls; otherwise nothing imports it and it is dropped
+- `dist/` and `node_modules/` are not committed
+- GitHub Pages must use "GitHub Actions" as its source (Settings → Pages). The site URL stays https://suiheilibe.github.io/tuck-draw-audit/, so data saved in localStorage stays available
 
 ## Terms
 
