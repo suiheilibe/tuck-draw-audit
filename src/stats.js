@@ -1,8 +1,15 @@
 // Exact null distribution of S = ΣY by convolving per-trial hypergeometric distributions. No DOM.
 
-const LF = [0]; for (let i=1;i<=400;i++) LF[i] = LF[i-1] + Math.log(i);
-const lC = (n,r) => (r<0||r>n) ? -Infinity : LF[n]-LF[r]-LF[n-r];
-const hyper = (N,k,m) => Array.from({length:m+1}, (_,y) => Math.exp(lC(k,y)+lC(N-k,m-y)-lC(N,m)));
+// Hypergeometric pmf H(N,k,m) without factorials: the smallest possible y as a product of small fractions,
+// then P(y+1) = P(y)·(k−y)(m−y) / ((y+1)(N−k−m+y+1)).
+function hyper(N,k,m){
+  const lo = Math.max(0, m-(N-k)), hi = Math.min(k,m), out = new Array(m+1).fill(0);
+  // P(lo) is C(N−k,m)/C(N,m) when lo = 0, and C(k,N−m)/C(N,N−m) when every non-target card is drawn.
+  const [top, len] = lo ? [k, N-m] : [N-k, m];
+  let p = 1; for (let i=0;i<len;i++) p *= (top-i)/(N-i);
+  for (let y=lo;y<=hi;y++){ out[y] = p; p *= (k-y)*(m-y)/((y+1)*(N-k-m+y+1)); }
+  return out;
+}
 function conv(a,b){
   const o = new Array(a.length+b.length-1).fill(0);
   for (let i=0;i<a.length;i++){ if(!a[i]) continue; for (let j=0;j<b.length;j++) o[i+j]+=a[i]*b[j]; }

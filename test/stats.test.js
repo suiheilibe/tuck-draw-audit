@@ -49,6 +49,18 @@ test('the variance matches the hypergeometric formula', () => {
   assert.ok(Math.abs(analyze([t]).cum[0].sd ** 2 - variance) < 1e-12);
 });
 
+test('draws that must contain the target card, and decks of any size', () => {
+  // N=5, k=4, m=3: only one non-target card, so y is 2 or 3. P(2) = C(4,2)·C(1,1)/C(5,3) = 0.6
+  for (const y of [2, 3]) {
+    const t = trial(5, 4, y, 3);
+    assert.ok(Math.abs(analyze([t]).p - bruteForce([t]).p) < 1e-12, `y=${y}`);
+  }
+  assert.ok(Math.abs(analyze([trial(5, 4, 3, 3)]).p - 0.4) < 1e-12);
+  // A large deck: P(S=1) = 2·(3/1000)(997/1000), P(S=2) = (3/1000)^2
+  const a = analyze([trial(1000, 3, 1), trial(1000, 3, 0)]);
+  assert.ok(Math.abs(a.p - (2 * 0.003 * 0.997 + 0.003 ** 2)) < 1e-12, a.p);
+});
+
 test('void and impossible records are left out', () => {
   const a = analyze([trial(36, 3, 1), trial(36, 3, 1, 1, { void: true }), trial(5, 6, 0), trial(3, 1, 0, 4)]);
   assert.equal(a.n, 1);
