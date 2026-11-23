@@ -29,7 +29,8 @@ document.querySelectorAll('[data-close]').forEach(b => b.onclick = () => hideShe
 
 /* ---------- events ---------- */
 $('results').addEventListener('click', e => { const b = e.target.closest('button'); if (b && !b.disabled) record(+b.dataset.y); });
-$('undoBtn').onclick = () => S.trials.at(-1)?.void ? redo() : undo();
+$('undoBtn').onclick = undo;
+$('redoBtn').onclick = redo;
 $('peekBtn').onclick = () => { reveal(); S.peeks++; save(); renderStats(); };
 const stepShown = d => { draft.shown = clamp((draft.shown ?? chipBase()) + d, 0, 99); renderInput(); };
 $('shownDown').onclick = () => stepShown(-1);
@@ -54,6 +55,12 @@ document.addEventListener('keydown', e => {
   if (e.key==='Escape' && openSheet){ hideSheet(); return; }
   if (e.key==='Escape'){ resetInput(); return; }
   const tg = e.target.tagName;
+  // Ctrl/Cmd+Z and Ctrl+Y act on records, except inside text fields where the browser's own undo applies
+  if ((e.ctrlKey||e.metaKey) && !e.altKey && !openSheet && tg!=='INPUT' && tg!=='TEXTAREA'){
+    const k = e.key.toLowerCase();
+    if (k==='z' && !e.shiftKey){ e.preventDefault(); undo(); return; }
+    if (k==='y' || (k==='z' && e.shiftKey)){ e.preventDefault(); redo(); return; }
+  }
   if (openSheet || tg==='INPUT'||tg==='TEXTAREA'||tg==='SELECT'||e.metaKey||e.ctrlKey||e.altKey) return;
   const k = e.key.toLowerCase(), m = S.settings.drawCount, keys = 'zxcvbnm';
   if (e.key==='ArrowUp'){ e.preventDefault(); stepShown(1); }

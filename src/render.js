@@ -1,7 +1,7 @@
 // Draws everything from the saved state and the draft. Event handlers are attached in main.js.
 
 import { $, clamp, esc } from './util.js';
-import { S, draft } from './state.js';
+import { S, draft, redoStack } from './state.js';
 import { analyze } from './stats.js';
 import { bMax, currentInput } from './input.js';
 
@@ -44,8 +44,8 @@ export function renderInput(){
   const notes = $('notes'); notes.replaceChildren();
   for (const i of inp.issues){ const d=document.createElement('div'); if (!i.info) d.className='warn'; d.textContent=i.t; notes.append(d); }
   $('kbdHint').innerHTML = inp.m===1
-    ? 'キー操作：<kbd>↑</kbd><kbd>↓</kbd> 山札枚数　<kbd>0</kbd>–<kbd>9</kbd> 戻す前の枚数　<kbd>Y</kbd> 引いた　<kbd>N</kbd> 引かなかった　<kbd>Esc</kbd> リセット'
-    : 'キー操作：<kbd>↑</kbd><kbd>↓</kbd> 山札枚数　<kbd>0</kbd>–<kbd>9</kbd> 戻す前の枚数　<kbd>Z</kbd><kbd>X</kbd><kbd>C</kbd><kbd>V</kbd>… 0,1,2,3枚　<kbd>Esc</kbd> リセット';
+    ? 'キー操作：<kbd>↑</kbd><kbd>↓</kbd> 山札枚数　<kbd>0</kbd>–<kbd>9</kbd> 戻す前の枚数　<kbd>Y</kbd> 引いた　<kbd>N</kbd> 引かなかった　<kbd>Esc</kbd> 初期値'
+    : 'キー操作：<kbd>↑</kbd><kbd>↓</kbd> 山札枚数　<kbd>0</kbd>–<kbd>9</kbd> 戻す前の枚数　<kbd>Z</kbd><kbd>X</kbd><kbd>C</kbd><kbd>V</kbd>… 0,1,2,3枚　<kbd>Esc</kbd> 初期値';
 }
 function renderLog(){
   const ul = $('log'); ul.replaceChildren();
@@ -60,9 +60,8 @@ function renderLog(){
       <b${t.y>0?' class="hit"':''}>${yl}</b>`;
     ul.append(li);
   }
-  const last = S.trials.at(-1), ub = $('undoBtn');
-  if (last && last.void){ ub.textContent='取り消しを戻す'; ub.disabled=false; }
-  else { ub.textContent='直前の記録を取り消す'; ub.disabled=!S.trials.some(t=>!t.void); }
+  $('undoBtn').disabled = !S.trials.some(t => !t.void);
+  $('redoBtn').disabled = !redoStack.some(id => S.trials.some(t => t.id===id && t.void));
 }
 export function renderStats(){
   const a = analyze(S.trials), st = S.settings;

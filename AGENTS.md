@@ -13,7 +13,7 @@ The published tool is a single HTML file, `dist/index.html`, built from the sour
   - `stats.js`: the exact test (no DOM; covered by `test/stats.test.js`)
   - `input.js`: values derived from the state and draft (defaults after recording, current input and its problems)
   - `render.js`: drawing. It attaches no handlers that change state
-  - `actions.js`: record, undo, redo, reset input
+  - `actions.js`: record, undo, redo, back to defaults
   - `io.js`: export, import, delete all data. `initIo()` attaches its handlers
   - `main.js`: entry point. Attaches the remaining handlers, then loads the state and draws
 - `scripts/build.mjs`: bundles the modules with Rollup and inlines them into `dist/index.html`
@@ -55,10 +55,11 @@ The published tool is a single HTML file, `dist/index.html`, built from the sour
 - Defaults after recording
   - deck size = previous a − 1
   - b = clamp(previous k − y, 0, max copies − r). With one-card draws, k stays the same after a hit and goes up by 1 after a miss
-- Defaults when there are no records, and on reset: deck size = initial deck size (default 35), b = max copies − r (default 2). On PC the Esc key also resets. Deleting all data also resets the input to these values
+- Defaults when there are no records, and on 「初期値に戻す」: deck size = initial deck size (default 35), b = max copies − r (default 2). On PC the Esc key also resets. Deleting all data also resets the input to these values
 - No sample data is shown
 - Keep the design and CSS as simple as possible. No web fonts; use each platform's default fonts (differences between environments are acceptable)
-- Records are never deleted. Undo only sets the `void` flag, which excludes the record from the statistics
+- Records are never deleted. Undo (「元に戻す」, Ctrl+Z) only sets the `void` flag, which excludes the record from the statistics, and puts that record's input back into the draft so it can be re-entered
+- Redo (「やり直す」, Ctrl+Y / Ctrl+Shift+Z) clears the flag again, newest undo first. The redo stack lives only in memory and is cleared by a new record, import, deleting all data, and reload. Inside text fields Ctrl+Z is left to the browser
 - Default settings: initial deck size 35, max copies 3, cards returned 1, cards drawn 1, target trials 300, hide p-value on
 
 ## Data
