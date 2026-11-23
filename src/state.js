@@ -8,8 +8,9 @@ const DEF = {targetName:'', effectName:'', initDeck:35, maxCopies:3, returnCount
 
 export let S;  // the whole saved state; replace it only through setS()
 let saveOk = true, lastSaved = null;
-export const setS = v => { S = v; };
-export const draft = {shown:null, b:null};  // b: target copies in the deck before returning; k = b + r
+export const setS = v => { S = v; redoStack.length = 0; };
+export const draft = {shown:null, b:null};
+export const redoStack = [];  // ids of trials voided by undo in this session, newest last; not saved  // b: target copies in the deck before returning; k = b + r
 
 export function fresh(){ return {v:2, settings:{...DEF}, trials:[], peeks:0, sample:false}; }
 export function cleanTrial(t){

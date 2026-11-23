@@ -89,7 +89,11 @@ header,.panel{margin-bottom:12px}
 
 <div class="cols">
   <div>
-    <section class="panel" aria-label="記録入力">
+    <section class="panel" aria-labelledby="inputTitle">
+      <div class="row split">
+        <h2 id="inputTitle">入力</h2>
+        <button type="button" id="resetInput" title="山札枚数と対象カードの枚数を初期値にします（記録は変わりません）">初期値に戻す</button>
+      </div>
       <div class="row split">
         <span>① 効果を使う直前の山札枚数</span>
         <small>戻した後 N = <b id="nOut">–</b></small>
@@ -117,16 +121,13 @@ header,.panel{margin-bottom:12px}
       </div>
       <div id="results"></div>
       <div id="notes"></div>
-      <div class="row split">
-        <small id="kbdHint"></small>
-        <button type="button" id="resetInput">入力をリセット</button>
-      </div>
+      <small id="kbdHint"></small>
     </section>
 
     <section class="panel">
       <div class="row split">
-        <span>記録</span>
-        <button type="button" id="undoBtn">直前の記録を取り消す</button>
+        <h2>記録</h2>
+        <span class="row"><button type="button" id="undoBtn" title="Ctrl+Z">元に戻す</button><button type="button" id="redoBtn" title="Ctrl+Y / Ctrl+Shift+Z">やり直す</button></span>
       </div>
       <ul id="log"></ul>
     </section>
@@ -235,7 +236,7 @@ Z = (S − μ) / σ   （正規近似。参考値）</pre>
     <textarea id="fallbackText" readonly aria-label="書き出したデータ"></textarea>
     <div class="row"><button class="primary" type="button" id="fallbackCopy">コピー</button><button type="button" id="fallbackClose">閉じる</button></div>
   </div>
-  <p><small>記録はこのブラウザに自動保存されます。別の端末に移すときは JSON を書き出して読み込んでください。取り消した記録も「取り消し済み」として残り、集計からだけ除外されます。</small></p>
+  <p><small>記録はこのブラウザに自動保存されます。別の端末に移すときは JSON を書き出して読み込んでください。元に戻した記録も「取り消し済み」として残り、集計からだけ除外されます。</small></p>
 </section>
 
 <div id="toast" role="status" aria-live="polite" hidden></div>
